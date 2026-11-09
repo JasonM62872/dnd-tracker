@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D&D Combat Initiative Tracker</title>
+    <style>
+        :root {
+            --bg-color: #1e1e24;
+            --card-bg: #2a2a35;
+            --accent-color: #e63946;
+            --active-color: #4caf50;
+            --text-color: #f1faee;
+            --border-color: #444455;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 600px;
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        .screen { display: none; }
+        .screen.active { display: block; }
+        h2 { border-bottom: 2px solid var(--border-color); padding-bottom: 10px; margin-top: 0; }
+        .form-group { margin-bottom: 15px; }
+        .input-row { display: flex; gap: 10px; margin-bottom: 10px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input, select, button {
+            width: 100%;
+            padding: 10px;
+            background: #15151c;
+            border: 1px solid var(--border-color);
+            color: white;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+        button {
+            background: var(--accent-color);
+            cursor: pointer;
+            font-weight: bold;
+            border: none;
+            margin-top: 5px;
+            transition: background 0.2s;
+        }
+        button:hover { background: #c12634; }
+        .secondary-btn { background: #457b9d; }
+        .secondary-btn:hover { background: #1d3557; }
+        .action-btn { background: var(--active-color); }
+        .action-btn:hover { background: #388e3c; }
+        .danger-btn { background: #b71c1c; margin-top: 40px; }
+        .danger-btn:hover { background: #7f0000; }
+        .combatant-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #15151c;
+            padding: 12px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            border-left: 4px solid transparent;
+        }
+        .combatant-row.active-turn {
+            border-left-color: var(--active-color);
+            background: #223a2a;
+            box-shadow: 0 0 10px rgba(76, 175, 80, 0.3);
+        }
+        .controls-footer {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .badge {
+            background: var(--border-color);
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        .flex-list-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            background: #15151c;
+            padding: 8px;
+            border-radius: 4px;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <!-- SCREEN 1: SESSION PARTY SETUP -->
+    <div id="screen-setup" class="screen active">
+        <h2>👥 1. Session Party Setup</h2>
+        <p style="font-size:14px; color:#aaa;">Add your active campaign players for this session.</p>
+        
+        <div class="input-row">
+            <input type="text" id="setup-p-name" style="flex: 2;" placeholder="Character Name">
+            <input type="number" id="setup-p-mod" style="flex: 1;" placeholder="Dex Mod" value="0">
+        </div>
+        <button onclick="addPlayerToParty()">Add Player to Session</button>
+
+        <h3 style="margin-top:20px;">Active Session Party</h3>
+        <div id="setup-party-list"></div>
+
+        <button class="secondary-btn" id="btn-to-enemies" onclick="goToScreen('screen-enemy')" style="margin-top:20px; display:none;">Proceed to Encounter Setup ➡️</button>
+        <button class="danger-btn" onclick="wipeDatabase()">🧹 End Session & Wipe Database</button>
+    </div>
+
+    <!-- SCREEN 2: ENEMY SETUP -->
+    <div id="screen-enemy" class="screen">
+        <h2>👹 2. Encounter Setup (Enemies)</h2>
+        <div class="input-row">
+            <input type="text" id="enemy-name" style="flex: 2;" placeholder="Enemy Group/Name (e.g., Goblin A)">
+            <input type="number" id="enemy-mod" style="flex: 1;" value="0" placeholder="Mod">
+        </div>
+        <button onclick="addEnemy()">Add Enemy</button>
+        
+        <h3 style="margin-top:20px;">Active Battle Targets</h3>
+        <div id="enemy-list"></div>
+        
+        <button class="action-btn" onclick="goToScreen('screen-players')" style="margin-top:20px;">Collect Initiative Rolls 🎲</button>
+        <button class="secondary-btn" onclick="goToScreen('screen-setup')">⬅️ Back to Party Setup</button>
+    </div>
+
+    <!-- SCREEN 3: PLAYER ROLLS INPUT -->
+    <div id="screen-players" class="screen">
+        <h2>🎲 3. Enter Physical Dice Rolls</h2>
+        <p style="font-size:14px; color:#aaa;">Select what your players rolled physically on their d20s.</p>
+        <div id="player-roll-inputs"></div>
+        
+        <button onclick="startCombat()" class="action-btn" style="margin-top:20px;">Roll Tracker & Sort Order! ⚔️</button>
+        <button class="secondary-btn" onclick="goToScreen('screen-enemy')">⬅️ Back to Enemies</button>
+    </div>
+
+    <!-- SCREEN 4: LIVE COMBAT DISPLAY -->
+    <div id="screen-combat" class="screen">
+        <h2>🛡️ Live Combat Turn Tracker</h2>
+        <div id="combat-tracker-list"></div>
+        
+        <div class="controls-footer">
+            <button class="secondary-btn" onclick="changeTurn(-1)">⏮️ Back</button>
+            <button class="action-btn" onclick="changeTurn(1)">Next Character ⏭️</button>
+        </div>
+        <button class="secondary-btn" onclick="endEncounter()" style="background:#555; margin-top:30px;">End Encounter (Keep Party)</button>
+    </div>
+</div>
+<script>
+    let sessionPlayers = JSON.parse(localStorage.getItem('dd_party')) || [];
+    let enemies = [];
+    let masterCombatants = [];
+    let currentTurnIndex = 0;
+
+    window.onload = function() {
+        renderPartyList();
+    };
+
+    function goToScreen(screenId) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(screenId).classList.add('active');
+        if(screenId === 'screen-players') setupPlayerRollScreen();
+    }
+
+    function addPlayerToParty() {
+        const nameInput = document.getElementById('setup-p-name');
+        const modInput = document.getElementById('setup-p-mod');
+        if (!nameInput.value.trim()) return;
+
+        sessionPlayers.push({
+            name: nameInput.value.trim(),
+            mod: parseInt(modInput.value) || 0
+        });
+
+        localStorage.setItem('dd_party', JSON.stringify(sessionPlayers));
+        nameInput.value = '';
+        modInput.value = '0';
+        renderPartyList();
+    }
+
+    function renderPartyList() {
+        const list = document.getElementById('setup-party-list');
+        const proceedBtn = document.getElementById('btn-to-enemies');
+        
+        if(sessionPlayers.length === 0) {
+            list.innerHTML = `<p style="color:#777; font-style:italic;">No active players added for tonight yet...</p>`;
+            proceedBtn.style.display = 'none';
+            return;
+        }
+        
+        proceedBtn.style.display = 'block';
+        list.innerHTML = sessionPlayers.map((p, idx) => `
+            <div class="flex-list-item">
+                <span>🛡️ <strong>${p.name}</strong> (Dex Mod: ${p.mod >= 0 ? '+' + p.mod : p.mod})</span>
+                <span style="color:var(--accent-color); cursor:pointer; font-weight:bold;" onclick="removePlayer(${idx})">✕</span>
+            </div>
+        `).join('');
+    }
+
+    function removePlayer(index) {
+        sessionPlayers.splice(index, 1);
+        localStorage.setItem('dd_party', JSON.stringify(sessionPlayers));
+        renderPartyList();
+    }
+
+    function addEnemy() {
+        const nameInput = document.getElementById('enemy-name');
+        const modInput = document.getElementById('enemy-mod');
+        if (!nameInput.value.trim()) return;
+
+        enemies.push({
+            name: nameInput.value.trim(),
+            mod: parseInt(modInput.value) || 0
+        });
+
+        nameInput.value = '';
+        modInput.value = '0';
+        renderEnemyList();
+    }
+
+    function renderEnemyList() {
+        const list = document.getElementById('enemy-list');
+        list.innerHTML = enemies.map((e, idx) => `
+            <div class="flex-list-item">
+                <span>👹 ${e.name} (Mod: ${e.mod >= 0 ? '+' + e.mod : e.mod})</span>
+                <span style="color:var(--accent-color); cursor:pointer; font-weight:bold;" onclick="enemies.splice(${idx},1); renderEnemyList();">✕</span>
+            </div>
+        `).join('');
+    }
+
+    function setupPlayerRollScreen() {
+        const container = document.getElementById('player-roll-inputs');
+        container.innerHTML = sessionPlayers.map((p, idx) => {
+            let dropOptions = '';
+            for(let i=1; i<=20; i++) {
+                dropOptions += `<option value="${i}">${i}</option>`;
+            }
+            return `
+                <div class="form-group" style="display:flex; gap:10px; align-items:center; margin-bottom:10px;">
+                    <span style="flex:2; font-weight:bold;">${p.name} (Mod: ${p.mod >= 0 ? '+' + p.mod : p.mod})</span>
+                    <select id="p-roll-${idx}" style="flex:1;">${dropOptions}</select>
+                </div>
+            `;
+        }).join('');
+    }
+    function startCombat() {
+        masterCombatants = [];
+        
+        sessionPlayers.forEach((p, idx) => {
+            const rawRoll = parseInt(document.getElementById(`p-roll-${idx}`).value);
+            masterCombatants.push({
+                name: p.name,
+                total: rawRoll + p.mod,
+                isPlayer: true,
+                randomSeed: Math.random()
+            });
+        });
+
+        enemies.forEach(e => {
+            const randomRoll = Math.floor(Math.random() * 20) + 1;
+            masterCombatants.push({
+                name: e.name,
+                total: randomRoll + e.mod,
+                isPlayer: false,
+                randomSeed: Math.random()
+            });
+        });
+
+        // Layered Tiebreaker Sort Engine
+        masterCombatants.sort((a, b) => {
+            if (b.total !== a.total) {
+                return b.total - a.total;
+            }
+            if (a.isPlayer !== b.isPlayer) {
+                return a.isPlayer ? -1 : 1;
+            }
+            if (a.isPlayer && b.isPlayer) {
+                const nameA = a.name.toLowerCase();
+                const nameB = b.name.toLowerCase();
+                if (nameA !== nameB) {
+                    return nameA < nameB ? -1 : 1;
+                }
+            }
+            return a.randomSeed - b.randomSeed;
+        });
+
+        currentTurnIndex = 0;
+        renderCombatScreen();
+        goToScreen('screen-combat');
+    }
+
+    function renderCombatScreen() {
+        const list = document.getElementById('combat-tracker-list');
+        list.innerHTML = masterCombatants.map((c, idx) => `
+            <div class="combatant-row ${idx === currentTurnIndex ? 'active-turn' : ''}">
+                <span style="font-weight: ${c.isPlayer ? 'bold' : 'normal'};">
+                    ${c.isPlayer ? '🛡️' : '👹'} ${c.name}
+                </span>
+                <span class="badge">Total: ${c.total}</span>
+            </div>
+        `).join('');
+    }
+
+    function changeTurn(direction) {
+        currentTurnIndex += direction;
+        if (currentTurnIndex >= masterCombatants.length) {
+            currentTurnIndex = 0;
+        } else if (currentTurnIndex < 0) {
+            currentTurnIndex = masterCombatants.length - 1;
+        }
+        renderCombatScreen();
+    }
+
+    function endEncounter() {
+        enemies = [];
+        masterCombatants = [];
+        document.getElementById('enemy-list').innerHTML = '';
+        goToScreen('screen-enemy');
+    }
+
+    function wipeDatabase() {
+        if(confirm("Are you sure you want to end tonight's session? This wipes your tracking memory completely clean.")) {
+            localStorage.clear();
+            sessionPlayers = [];
+            enemies = [];
+            masterCombatants = [];
+            document.getElementById('enemy-list').innerHTML = '';
+            renderPartyList();
+            goToScreen('screen-setup');
+        }
+    }
+</script>
+</body>
+</html>
