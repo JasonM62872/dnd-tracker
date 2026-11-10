@@ -132,7 +132,7 @@
         <div id="enemy-list"></div>
         
         <button class="action-btn" onclick="goToScreen('screen-players')" style="margin-top:20px;">Collect Initiative Rolls 🎲</button>
-        <button class="secondary-btn" onclick="goToScreen('screen-setup')">⬅️ Back to Party Setup</button>
+        <button class="secondary-btn" onclick="goToScreen('setup')">⬅️ Back to Party Setup</button>
     </div>
 
     <!-- SCREEN 3: PLAYER ROLLS INPUT -->
@@ -145,9 +145,19 @@
         <button class="secondary-btn" onclick="goToScreen('screen-enemy')">⬅️ Back to Enemies</button>
     </div>
 
-    <!-- SCREEN 4: LIVE COMBAT DISPLAY -->
+    <!-- SCREEN 4: LIVE COMBAT DISPLAY WITH TIMER -->
     <div id="screen-combat" class="screen">
         <h2>🛡️ Live Combat Turn Tracker</h2>
+        
+        <!-- ⏱️ TURN TIMER CONTAINER -->
+        <div style="background: #15151c; padding: 15px; border-radius: 6px; text-align: center; margin-bottom: 20px; border: 1px solid var(--border-color);">
+            <div id="timer-display" style="font-size: 36px; font-weight: bold; font-family: monospace; color: var(--accent-color); margin-bottom: 10px;">01:00</div>
+            <div style="display: flex; gap: 8px;">
+                <button id="timer-toggle-btn" onclick="toggleTimer()" style="background: var(--active-color); margin: 0;">Start</button>
+                <button onclick="resetTimer()" style="background: #555; margin: 0;">Reset</button>
+            </div>
+        </div>
+
         <div id="combat-tracker-list"></div>
         
         <div class="controls-footer">
@@ -297,6 +307,7 @@
 
         currentTurnIndex = 0;
         renderCombatScreen();
+        resetTimer(); // Initialize timer clean state on encounter start
         goToScreen('screen-combat');
     }
 
@@ -320,9 +331,11 @@
             currentTurnIndex = masterCombatants.length - 1;
         }
         renderCombatScreen();
+        resetTimer(); // Instantly refresh the full 60 seconds for the next actor
     }
 
     function endEncounter() {
+        clearInterval(timerInterval); // Stop internal runtime ticking engines
         enemies = [];
         masterCombatants = [];
         document.getElementById('enemy-list').innerHTML = '';
@@ -331,6 +344,7 @@
 
     function wipeDatabase() {
         if(confirm("Are you sure you want to end tonight's session? This wipes your tracking memory completely clean.")) {
+            clearInterval(timerInterval);
             localStorage.clear();
             sessionPlayers = [];
             enemies = [];
@@ -339,6 +353,50 @@
             renderPartyList();
             goToScreen('screen-setup');
         }
+    }
+
+    // ⏱️ TURNTIMER CONTROLLER LOGIC ENGINE CORE
+    let timerInterval = null;
+    let timeLeft = 60; 
+
+    function toggleTimer() {
+        const btn = document.getElementById('timer-toggle-btn');
+        if (timerInterval) {
+            clearInterval(timerInterval);
+            timerInterval = null;
+            btn.innerText = "Start";
+            btn.style.background = "var(--active-color)";
+        } else {
+            btn.innerText = "Stop";
+            btn.style.background = "var(--accent-color)";
+            timerInterval = setInterval(() => {
+                if (timeLeft > 0) {
+                    timeLeft--;
+                    updateTimerDisplay();
+                } else {
+                    clearInterval(timerInterval);
+                    timerInterval = null;
+                    document.getElementById('timer-display').innerText = "TIME OUT!";
+                    btn.innerText = "Start";
+                    btn.style.background = "var(--active-color)";
+                }
+            }, 1000);
+        }
+    }
+
+    function resetTimer() {
+        clearInterval(timerInterval);
+        timerInterval = null;
+        timeLeft = 60;
+        updateTimerDisplay();
+        const btn = document.getElementById('timer-toggle-btn');
+        btn.innerText = "Start";
+        btn.style.background = "var(--active-color)";
+    }
+
+    function updateTimerDisplay() {
+        const secs = timeLeft % 60;
+        document.getElementById('timer-display').innerText = `00:${secs < 10 ? '0' : ''}${secs}`;
     }
 </script>
 </body>
