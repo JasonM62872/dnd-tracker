@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>D&D Combat Initiative Tracker</title>
+    <title>Combat Initiative Tracker</title>
     <style>
         :root {
             --bg-color: #1e1e24;
@@ -132,7 +132,7 @@
         <div id="enemy-list"></div>
         
         <button class="action-btn" onclick="goToScreen('screen-players')" style="margin-top:20px;">Collect Initiative Rolls 🎲</button>
-        <button class="secondary-btn" onclick="goToScreen('setup')">⬅️ Back to Party Setup</button>
+        <button class="secondary-btn" onclick="goToScreen('screen-setup')">⬅️ Back to Party Setup</button>
     </div>
 
     <!-- SCREEN 3: PLAYER ROLLS INPUT -->
@@ -307,7 +307,7 @@
 
         currentTurnIndex = 0;
         renderCombatScreen();
-        resetTimer(); // Initialize timer clean state on encounter start
+        resetTimer(); 
         goToScreen('screen-combat');
     }
 
@@ -331,11 +331,11 @@
             currentTurnIndex = masterCombatants.length - 1;
         }
         renderCombatScreen();
-        resetTimer(); // Instantly refresh the full 60 seconds for the next actor
+        resetTimer(); 
     }
 
     function endEncounter() {
-        clearInterval(timerInterval); // Stop internal runtime ticking engines
+        clearInterval(timerInterval); 
         enemies = [];
         masterCombatants = [];
         document.getElementById('enemy-list').innerHTML = '';
